@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { z } from "zod";
-import { ChallengeContext } from ".";
+import { ActionMetadata, ChallengeContext } from ".";
 
 const ctx = new ChallengeContext<{
   seed: string;
@@ -55,7 +55,8 @@ test("initialize creates state", () => {
 });
 
 test("creating action objects", () => {
-  expect(actions.setText.create(0, "hello")).toMatchInlineSnapshot(`
+  expect(actions.setText.create("hello", { timestamp: 0 }))
+    .toMatchInlineSnapshot(`
     {
       "payload": "hello",
       "timestamp": 0,
@@ -67,9 +68,10 @@ test("creating action objects", () => {
 test("updating state with actions", () => {
   const initialState = challenge.initialize({ seed: "x" });
   let state = initialState;
-  state = challenge.update(state, actions.setText.create(1, "hello"));
-  state = challenge.update(state, actions.check.create(2, true));
-  state = challenge.update(state, actions.increment.create(3, []));
+  const meta: ActionMetadata = { timestamp: 0 };
+  state = challenge.update(state, actions.setText.create("hello", meta));
+  state = challenge.update(state, actions.check.create(true, meta));
+  state = challenge.update(state, actions.increment.create([], meta));
 
   expect(initialState).toMatchInlineSnapshot(`
     {

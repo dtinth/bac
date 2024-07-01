@@ -1,7 +1,8 @@
 import { Draft, produce } from "immer";
+import { useCallback, useReducer, useState } from "react";
 import { z } from "zod";
 
-export interface IChallenge<TState> {
+export interface Challenge<TState> {
   initialize(params: unknown): TState;
   update(state: TState, action: Action): TState;
 }
@@ -21,7 +22,7 @@ export interface ChallengeDefinition<
   actionHandlers: TActions;
 }
 
-type ActionMetadata = {
+export type ActionMetadata = {
   timestamp: number;
 };
 type ActionHandlers<TState> = Record<string, ActionHandler<TState>>;
@@ -68,7 +69,7 @@ export class ChallengeContext<TState> {
 
   createChallenge<TDefinition extends ChallengeDefinition>(
     definition: TDefinition
-  ): IChallenge<TState> {
+  ): Challenge<TState> {
     const { actionHandlers, initializer } = definition;
     return {
       initialize: (params) => {
@@ -117,17 +118,67 @@ type Wildcard = any;
 
 export class ChallengeAction<
   TContext extends ChallengeContext<Wildcard>,
-  TPayloadSchema extends z.ZodTypeAny
+  TPayloadSchema extends z.ZodTypeAny = Wildcard
 > {
   _context!: TContext;
+  _payload!: z.infer<TPayloadSchema>;
 
   constructor(public type: string, public payloadSchema: TPayloadSchema) {}
 
-  create(timestamp: number, payload: z.infer<TPayloadSchema>) {
+  create(payload: z.infer<TPayloadSchema>, metadata: ActionMetadata) {
     return {
       type: this.type,
-      timestamp,
+      timestamp: metadata.timestamp,
       payload,
     };
   }
+}
+
+export function useChallenge<TState>(
+  challenge: Challenge<TState>,
+  initialParams: unknown
+) {
+  const [startTime] = useState(() => performance.now());
+  type RuntimeState = {
+    state: TState;
+    params: unknown;
+    actionLog: unknown[][];
+    size: number;
+  };
+  const [state, dispatch] = useReducer(
+    (runtimeState: RuntimeState, action: Action): RuntimeState => {
+      const newState = challenge.update(runtimeState.state, action);
+      const item = [action.type, action.timestamp, action.payload];
+      return {
+        ...runtimeState,
+        state: newState,
+        actionLog: [...runtimeState.actionLog, item],
+        size:
+          runtimeState.size +
+          new TextEncoder().encode(JSON.stringify(item)).length +
+          1,
+      };
+    },
+    initialParams,
+    (params): RuntimeState => {
+      const state = challenge.initialize(params);
+      return {
+        state,
+        params,
+        actionLog: [],
+        size: 2,
+      };
+    }
+  );
+  const dispatchAction = useCallback(
+    function getPayload<T extends ChallengeAction<ChallengeContext<TState>>>(
+      action: T,
+      payload: NoInfer<T["_payload"]>
+    ) {
+      const timestamp = Math.round(performance.now() - startTime);
+      dispatch(action.create(payload, { timestamp }));
+    },
+    [dispatch, startTime]
+  );
+  return [state, dispatchAction] as const;
 }

@@ -38,3 +38,4 @@ const challengeDefinition = ctx.createChallengeDefinition({
 });
 
 export const challenge = ctx.createChallenge(challengeDefinition);
+export const actions = ctx.createActionCreators(challengeDefinition);
