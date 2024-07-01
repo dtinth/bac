@@ -1,22 +1,37 @@
 import { z } from "zod";
-import { createChallengeBuilder } from "../challenge-framework";
+import { Challenge } from "../challenge-framework";
 
-const challenge = createChallengeBuilder({
-  params: z.object({
+interface State {
+  seed: string;
+  challengeA: string;
+  challengeB: boolean;
+  challengeC: number;
+}
+
+export const challenge = new Challenge<State>();
+
+challenge.onInitialize(
+  z.object({
     seed: z.string(),
   }),
-  initializer: (params) => {
+  (params) => {
     return {
       seed: params.seed,
-      challengeA: true,
-      challengeB: "",
+      challengeA: "",
+      challengeB: false,
       challengeC: 0,
     };
-  },
-}).command("a", [z.boolean()] as const, (state, value) => {
-  state.challengeA = value
-}).command("b", [z.string()] as const, (state, value) => {
-  state.challengeB = value
-}).command("c", [] as const, (state) => {
-  state.challengeC++
-});
+  }
+);
+
+export const actions = {
+  setText: challenge.onAction("a", z.string(), (state, payload) => {
+    state.challengeA = payload;
+  }),
+  check: challenge.onAction("b", z.boolean(), (state, payload) => {
+    state.challengeB = payload;
+  }),
+  increment: challenge.onAction("b", z.unknown(), (state) => {
+    state.challengeC++;
+  }),
+};

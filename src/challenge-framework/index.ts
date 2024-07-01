@@ -1,83 +1,86 @@
+import { Draft, produce } from "immer";
 import { z } from "zod";
-import { produce, Draft } from "immer";
 
-export function createChallengeBuilder<
-  TParamSchema extends z.ZodTypeAny,
-  TState
->(options: {
-  params: TParamSchema;
-  initializer: (params: z.infer<NoInfer<TParamSchema>>) => TState;
-}): ChallengeBuilder<z.infer<TParamSchema>, TState> {
-  const handlers: Map<string, CommandHandler<TState>> = new Map();
-  return {
-    command(name, argSchemas, handler) {
-      handlers.set(name, (state, ...args) => {
-        const parsedArgs = args.map((v, k) => (argSchemas[k] as z.ZodTypeAny).parse(v));
-        return handler(state, ...(parsedArgs as any));
-      });
-      return this;
-    },
-    buildChallenge() {
-      return {
-        initialize(params) {
-          return options.initializer(options.params.parse(params));
-        },
-        update(state, [command, ...args]) {
-          const handler = handlers.get(command);
-          if (!handler) {
-            throw new Error(`Unknown command: ${command}`);
-          }
-          const nextState = produce(state, (draft) => {
-            handler(draft, ...args);
-          });
-          return nextState;
-        },
-      };
-    },
-    buildCommander() {
-      return (command, ...args) => [command, ...args];
-    },
-  };
+export interface IChallenge<TState> {
+  initialize(params: unknown): TState;
+  update(state: TState, action: Action): TState;
 }
 
-export type CommandHandler<TState> = (
-  state: Draft<TState>,
-  ...args: unknown[]
-) => void;
-export type CommandMap = { [command: string]: unknown[] };
+export interface Action {
+  type: string;
+  timestamp: number;
+  payload: unknown;
+}
 
-type ZodArguments<T extends unknown[]> = {
-  [K in keyof T]: T[K] extends z.ZodTypeAny ? z.infer<T[K]> : never;
-};
+export class Challenge<TState> implements IChallenge<TState> {
+  private _initializer?: (params: unknown) => TState;
+  private _actionHandlers = new Map<
+    string,
+    (state: TState, action: Action) => TState
+  >();
 
-export interface ChallengeBuilder<
-  TParams,
-  TState,
-  TCommands extends CommandMap = {}
-> {
-  command<TName extends string, TArgumentSchemas extends unknown[]>(
-    name: TName,
-    [...argSchemas]: TArgumentSchemas,
+  initialize(params: unknown): TState {
+    if (!this._initializer) {
+      throw new Error("onInitialize not called");
+    }
+    return this._initializer(params);
+  }
+
+  update(state: TState, action: Action): TState {
+    const handler = this._actionHandlers.get(action.type);
+    if (!handler) {
+      throw new Error(`No handler for action type ${action.type}`);
+    }
+    return handler(state, action);
+  }
+
+  onInitialize<TSchema extends z.ZodTypeAny>(
+    schema: TSchema,
+    getInitialState: (params: z.infer<NoInfer<TSchema>>) => TState
+  ) {
+    this._initializer = (params: unknown) => {
+      const parsed = schema.parse(params);
+      return getInitialState(parsed);
+    };
+  }
+
+  onAction<TActionType extends string, TPayloadSchema extends z.ZodTypeAny>(
+    actionType: TActionType,
+    payloadSchema: TPayloadSchema,
     handler: (
       state: Draft<TState>,
-      ...args: NoInfer<ZodArguments<TArgumentSchemas>>
+      payload: z.infer<NoInfer<TPayloadSchema>>
     ) => void
-  ): ChallengeBuilder<
-    TParams,
-    TState,
-    TCommands & { [K in TName]: NoInfer<ZodArguments<TArgumentSchemas>> }
-  >;
-  buildChallenge(): Challenge<TState>;
-  buildCommander(): Commander<TCommands>;
+  ) {
+    this._actionHandlers.set(actionType, (state, action) => {
+      const parsed = payloadSchema.parse(action.payload);
+      return produce(state, (draft) => {
+        handler(draft, parsed);
+      });
+    });
+    return new ChallengeAction(this, actionType, payloadSchema);
+  }
 }
 
-export interface Challenge<TState> {
-  initialize(params: unknown): TState;
-  update(state: TState, command: Command): TState;
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Wildcard = any;
 
-export interface Commander<TCommands extends CommandMap> {
-  <K extends keyof TCommands>(command: K, ...args: TCommands[K]): Command;
-}
+export class ChallengeAction<
+  TChallenge extends Challenge<Wildcard>,
+  TActionType extends string,
+  TPayloadSchema extends z.ZodTypeAny
+> {
+  constructor(
+    public challenge: TChallenge,
+    public type: TActionType,
+    public payloadSchema: TPayloadSchema
+  ) {}
 
-export type Command = [string, ...args: unknown[]];
+  create(timestamp: number, payload: z.infer<TPayloadSchema>) {
+    return {
+      type: this.type,
+      timestamp,
+      payload,
+    };
+  }
+}
