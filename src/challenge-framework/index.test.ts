@@ -1,38 +1,45 @@
 import { expect, test } from "vitest";
 import { z } from "zod";
-import { Challenge } from ".";
+import { ChallengeContext } from ".";
 
-const challenge = new Challenge<{
+const ctx = new ChallengeContext<{
   seed: string;
   challengeA: string;
   challengeB: boolean;
   challengeC: number;
 }>();
 
-challenge.onInitialize(
-  z.object({
-    seed: z.string(),
-  }),
-  (params) => {
-    return {
-      seed: params.seed,
-      challengeA: "",
-      challengeB: false,
-      challengeC: 0,
-    };
-  }
-);
+const definition = ctx.createChallengeDefinition({
+  initializer: ctx.createInitializer(
+    z.object({ seed: z.string() }),
+    (params) => {
+      return {
+        seed: params.seed,
+        challengeA: "",
+        challengeB: false,
+        challengeC: 0,
+      };
+    }
+  ),
+  actionHandlers: {
+    a: ctx.createActionHandler(z.string(), (state, payload) => {
+      state.challengeA = payload;
+    }),
+    b: ctx.createActionHandler(z.boolean(), (state, payload) => {
+      state.challengeB = payload;
+    }),
+    c: ctx.createActionHandler(z.unknown(), (state) => {
+      state.challengeC++;
+    }),
+  },
+});
 
+const challenge = ctx.createChallenge(definition);
+const rawActions = ctx.createActionCreators(definition);
 const actions = {
-  setText: challenge.onAction("a", z.string(), (state, payload) => {
-    state.challengeA = payload;
-  }),
-  check: challenge.onAction("b", z.boolean(), (state, payload) => {
-    state.challengeB = payload;
-  }),
-  increment: challenge.onAction("c", z.unknown(), (state) => {
-    state.challengeC++;
-  }),
+  setText: rawActions.a,
+  check: rawActions.b,
+  increment: rawActions.c,
 };
 
 test("initialize creates state", () => {

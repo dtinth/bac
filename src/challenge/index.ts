@@ -1,37 +1,40 @@
 import { z } from "zod";
-import { Challenge } from "../challenge-framework";
+import { ChallengeContext } from "../challenge-framework";
 
 interface State {
   seed: string;
+  page: number;
   challengeA: string;
   challengeB: boolean;
   challengeC: number;
 }
 
-export const challenge = new Challenge<State>();
+const ctx = new ChallengeContext<State>();
 
-challenge.onInitialize(
-  z.object({
-    seed: z.string(),
-  }),
-  (params) => {
-    return {
-      seed: params.seed,
-      challengeA: "",
-      challengeB: false,
-      challengeC: 0,
-    };
-  }
-);
+const challengeDefinition = ctx.createChallengeDefinition({
+  initializer: ctx.createInitializer(
+    z.object({ seed: z.string() }),
+    (params) => {
+      return {
+        seed: params.seed,
+        page: 0,
+        challengeA: "",
+        challengeB: false,
+        challengeC: 0,
+      };
+    }
+  ),
+  actionHandlers: {
+    a: ctx.createActionHandler(z.string(), (state, payload) => {
+      state.challengeA = payload;
+    }),
+    b: ctx.createActionHandler(z.boolean(), (state, payload) => {
+      state.challengeB = payload;
+    }),
+    c: ctx.createActionHandler(z.unknown(), (state) => {
+      state.challengeC++;
+    }),
+  },
+});
 
-export const actions = {
-  setText: challenge.onAction("a", z.string(), (state, payload) => {
-    state.challengeA = payload;
-  }),
-  check: challenge.onAction("b", z.boolean(), (state, payload) => {
-    state.challengeB = payload;
-  }),
-  increment: challenge.onAction("b", z.unknown(), (state) => {
-    state.challengeC++;
-  }),
-};
+export const challenge = ctx.createChallenge(challengeDefinition);

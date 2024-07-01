@@ -12,53 +12,103 @@ export interface Action {
   payload: unknown;
 }
 
-export class Challenge<TState> implements IChallenge<TState> {
-  private _initializer?: (params: unknown) => TState;
-  private _actionHandlers = new Map<
-    string,
-    (state: TState, action: Action) => TState
-  >();
+export interface ChallengeDefinition<
+  TState = Wildcard,
+  TParamsSchema extends z.ZodTypeAny = Wildcard,
+  TActions extends ActionHandlers<TState> = ActionHandlers<TState>
+> {
+  initializer: Initializer<TState, TParamsSchema>;
+  actionHandlers: TActions;
+}
 
-  initialize(params: unknown): TState {
-    if (!this._initializer) {
-      throw new Error("onInitialize not called");
-    }
-    return this._initializer(params);
+type ActionMetadata = {
+  timestamp: number;
+};
+type ActionHandlers<TState> = Record<string, ActionHandler<TState>>;
+type ActionHandler<TState, TPayloadType extends z.ZodTypeAny = Wildcard> = {
+  payloadSchema: TPayloadType;
+  updater: (
+    state: Draft<TState>,
+    payload: z.infer<TPayloadType>,
+    metadata: ActionMetadata
+  ) => void;
+};
+type Initializer<TState, TParamsSchema extends z.ZodTypeAny> = {
+  paramsSchema: TParamsSchema;
+  getInitialState: (params: z.infer<TParamsSchema>) => TState;
+};
+
+export class ChallengeContext<TState> {
+  createChallengeDefinition<
+    TParamsSchema extends z.ZodTypeAny,
+    TActions extends ActionHandlers<TState>
+  >(def: ChallengeDefinition<TState, TParamsSchema, TActions>) {
+    return def;
   }
 
-  update(state: TState, action: Action): TState {
-    const handler = this._actionHandlers.get(action.type);
-    if (!handler) {
-      throw new Error(`No handler for action type ${action.type}`);
-    }
-    return handler(state, action);
-  }
-
-  onInitialize<TSchema extends z.ZodTypeAny>(
-    schema: TSchema,
-    getInitialState: (params: z.infer<NoInfer<TSchema>>) => TState
-  ) {
-    this._initializer = (params: unknown) => {
-      const parsed = schema.parse(params);
-      return getInitialState(parsed);
+  createActionHandler<TPayloadSchema extends z.ZodTypeAny>(
+    payloadSchema: TPayloadSchema,
+    updater: ActionHandler<TState, TPayloadSchema>["updater"]
+  ): ActionHandler<TState, TPayloadSchema> {
+    return {
+      payloadSchema,
+      updater,
     };
   }
 
-  onAction<TActionType extends string, TPayloadSchema extends z.ZodTypeAny>(
-    actionType: TActionType,
-    payloadSchema: TPayloadSchema,
-    handler: (
-      state: Draft<TState>,
-      payload: z.infer<NoInfer<TPayloadSchema>>
-    ) => void
+  createInitializer<TParamsSchema extends z.ZodTypeAny>(
+    paramsSchema: TParamsSchema,
+    getInitialState: Initializer<TState, TParamsSchema>["getInitialState"]
+  ): Initializer<TState, TParamsSchema> {
+    return {
+      paramsSchema,
+      getInitialState,
+    };
+  }
+
+  createChallenge<TDefinition extends ChallengeDefinition>(
+    definition: TDefinition
+  ): IChallenge<TState> {
+    const { actionHandlers, initializer } = definition;
+    return {
+      initialize: (params) => {
+        const paramsSchema = initializer.paramsSchema as z.ZodTypeAny;
+        const parsedParams = paramsSchema.parse(params);
+        return initializer.getInitialState(parsedParams);
+      },
+      update: (state, action) => {
+        const found = Object.hasOwnProperty.call(actionHandlers, action.type);
+        if (!found) {
+          throw new Error(
+            `Action handler not found for action type: ${action.type}`
+          );
+        }
+        const handler = actionHandlers[action.type];
+        const payloadSchema = handler.payloadSchema as z.ZodTypeAny;
+        const parsedPayload = payloadSchema.parse(action.payload);
+        return produce(state, (draft) => {
+          handler.updater(draft, parsedPayload, {
+            timestamp: action.timestamp,
+          });
+        });
+      },
+    };
+  }
+
+  createActionCreators<TDefinition extends ChallengeDefinition>(
+    definition: TDefinition
   ) {
-    this._actionHandlers.set(actionType, (state, action) => {
-      const parsed = payloadSchema.parse(action.payload);
-      return produce(state, (draft) => {
-        handler(draft, parsed);
-      });
-    });
-    return new ChallengeAction(this, actionType, payloadSchema);
+    const { actionHandlers } = definition;
+    return Object.fromEntries(
+      Object.entries(actionHandlers).map(([type, handler]) => {
+        return [type, new ChallengeAction(type, handler.payloadSchema)];
+      })
+    ) as {
+      [K in keyof TDefinition["actionHandlers"] & string]: ChallengeAction<
+        this,
+        TDefinition["actionHandlers"][K]["payloadSchema"]
+      >;
+    };
   }
 }
 
@@ -66,15 +116,12 @@ export class Challenge<TState> implements IChallenge<TState> {
 type Wildcard = any;
 
 export class ChallengeAction<
-  TChallenge extends Challenge<Wildcard>,
-  TActionType extends string,
+  TContext extends ChallengeContext<Wildcard>,
   TPayloadSchema extends z.ZodTypeAny
 > {
-  constructor(
-    public challenge: TChallenge,
-    public type: TActionType,
-    public payloadSchema: TPayloadSchema
-  ) {}
+  _context!: TContext;
+
+  constructor(public type: string, public payloadSchema: TPayloadSchema) {}
 
   create(timestamp: number, payload: z.infer<TPayloadSchema>) {
     return {
