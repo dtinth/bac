@@ -1,10 +1,16 @@
 import { Draft, produce } from "immer";
-import { useCallback, useReducer, useState } from "react";
 import { z } from "zod";
 
 export interface Challenge<TState> {
-  initialize(params: unknown): TState;
+  initialize(params: unknown, metadata: ChallengeMetadata): TState;
   update(state: TState, action: Action): TState;
+  isChallengeCompleted: (state: TState) => boolean;
+  getFailureReason: (state: TState) => string | undefined;
+}
+
+export interface ChallengeMetadata {
+  startTime: number;
+  attemptId: string;
 }
 
 export interface Action {
@@ -20,11 +26,14 @@ export interface ChallengeDefinition<
 > {
   initializer: Initializer<TState, TParamsSchema>;
   actionHandlers: TActions;
+  isChallengeCompleted: (state: TState) => boolean;
+  getFailureReason: (state: TState) => string | undefined;
 }
 
-export type ActionMetadata = {
+export interface ActionMetadata {
   timestamp: number;
-};
+}
+
 type ActionHandlers<TState> = Record<string, ActionHandler<TState>>;
 type ActionHandler<TState, TPayloadType extends z.ZodTypeAny = Wildcard> = {
   payloadSchema: TPayloadType;
@@ -36,7 +45,10 @@ type ActionHandler<TState, TPayloadType extends z.ZodTypeAny = Wildcard> = {
 };
 type Initializer<TState, TParamsSchema extends z.ZodTypeAny> = {
   paramsSchema: TParamsSchema;
-  getInitialState: (params: z.infer<TParamsSchema>) => TState;
+  getInitialState: (
+    params: z.infer<TParamsSchema>,
+    metadata: ChallengeMetadata
+  ) => TState;
 };
 
 export class ChallengeContext<TState> {
@@ -72,10 +84,10 @@ export class ChallengeContext<TState> {
   ): Challenge<TState> {
     const { actionHandlers, initializer } = definition;
     return {
-      initialize: (params) => {
+      initialize: (params, metadata) => {
         const paramsSchema = initializer.paramsSchema as z.ZodTypeAny;
         const parsedParams = paramsSchema.parse(params);
-        return initializer.getInitialState(parsedParams);
+        return initializer.getInitialState(parsedParams, metadata);
       },
       update: (state, action) => {
         const found = Object.hasOwnProperty.call(actionHandlers, action.type);
@@ -93,6 +105,8 @@ export class ChallengeContext<TState> {
           });
         });
       },
+      isChallengeCompleted: definition.isChallengeCompleted,
+      getFailureReason: definition.getFailureReason,
     };
   }
 
@@ -132,53 +146,4 @@ export class ChallengeAction<
       payload,
     };
   }
-}
-
-export function useChallenge<TState>(
-  challenge: Challenge<TState>,
-  initialParams: unknown
-) {
-  const [startTime] = useState(() => performance.now());
-  type RuntimeState = {
-    state: TState;
-    params: unknown;
-    actionLog: unknown[][];
-    size: number;
-  };
-  const [state, dispatch] = useReducer(
-    (runtimeState: RuntimeState, action: Action): RuntimeState => {
-      const newState = challenge.update(runtimeState.state, action);
-      const item = [action.type, action.timestamp, action.payload];
-      return {
-        ...runtimeState,
-        state: newState,
-        actionLog: [...runtimeState.actionLog, item],
-        size:
-          runtimeState.size +
-          new TextEncoder().encode(JSON.stringify(item)).length +
-          1,
-      };
-    },
-    initialParams,
-    (params): RuntimeState => {
-      const state = challenge.initialize(params);
-      return {
-        state,
-        params,
-        actionLog: [],
-        size: 2,
-      };
-    }
-  );
-  const dispatchAction = useCallback(
-    function getPayload<T extends ChallengeAction<ChallengeContext<TState>>>(
-      action: T,
-      payload: NoInfer<T["_payload"]>
-    ) {
-      const timestamp = Math.round(performance.now() - startTime);
-      dispatch(action.create(payload, { timestamp }));
-    },
-    [dispatch, startTime]
-  );
-  return [state, dispatchAction] as const;
 }

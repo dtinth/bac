@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { z } from "zod";
-import { ActionMetadata, ChallengeContext } from ".";
+import { ActionMetadata, ChallengeContext, ChallengeMetadata } from ".";
 
 const ctx = new ChallengeContext<{
   seed: string;
@@ -32,6 +32,8 @@ const definition = ctx.createChallengeDefinition({
       state.challengeC++;
     }),
   },
+  isChallengeCompleted: () => false,
+  getFailureReason: () => undefined,
 });
 
 const challenge = ctx.createChallenge(definition);
@@ -41,9 +43,13 @@ const actions = {
   check: rawActions.b,
   increment: rawActions.c,
 };
+const challengeMetadata: ChallengeMetadata = {
+  attemptId: "",
+  startTime: 0,
+};
 
 test("initialize creates state", () => {
-  const state = challenge.initialize({ seed: "seed" });
+  const state = challenge.initialize({ seed: "seed" }, challengeMetadata);
   expect(state).toMatchInlineSnapshot(`
     {
       "challengeA": "",
@@ -66,7 +72,7 @@ test("creating action objects", () => {
 });
 
 test("updating state with actions", () => {
-  const initialState = challenge.initialize({ seed: "x" });
+  const initialState = challenge.initialize({ seed: "x" }, challengeMetadata);
   let state = initialState;
   const meta: ActionMetadata = { timestamp: 0 };
   state = challenge.update(state, actions.setText.create("hello", meta));
