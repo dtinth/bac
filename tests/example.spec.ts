@@ -56,18 +56,27 @@ test("challenge robot", async ({ page }) => {
   const goForward = page.getByRole("button", { name: "Go forward" });
   const turnLeft = page.getByRole("button", { name: "Turn left" });
   const turnRight = page.getByRole("button", { name: "Turn right" });
+  const wallToTheLeft = page.locator("#wallToTheLeft");
+  const wallToTheRight = page.locator("#wallToTheRight");
+  const wallInFront = page.locator("#wallInFront");
   await expect(goForward).toBeVisible();
   for (let i = 0; i < 1000; i++) {
     if (!(await goForward.isVisible())) {
+      // Challenge completed or failed
       break;
     }
-    await turnLeft.click();
-    for (let j = 0; j < 4; j++) {
-      if ((await goForward.getAttribute("data-color")) === "green") {
-        break;
-      }
+    if ((await wallToTheLeft.getAttribute("data-state")) === "absent") {
+      await turnLeft.click();
+      await goForward.click();
+    } else if ((await wallInFront.getAttribute("data-state")) === "absent") {
+      await goForward.click();
+    } else if ((await wallToTheRight.getAttribute("data-state")) === "absent") {
       await turnRight.click();
+      await goForward.click();
+    } else {
+      await turnLeft.click();
+      await turnLeft.click();
+      await goForward.click();
     }
-    await goForward.click();
   }
 });

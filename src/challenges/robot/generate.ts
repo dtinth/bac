@@ -88,6 +88,7 @@ export function generateMaze(w: number, h: number, seed: string) {
       directionIndex: 0,
     },
   ];
+  visit([1, 1]);
   while (stack.length > 0) {
     const top = stack[stack.length - 1];
     if (top.directionIndex >= top.directionList.length) {
