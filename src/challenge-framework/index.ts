@@ -2,13 +2,14 @@ import { Draft, produce } from "immer";
 import { z } from "zod";
 
 export interface Challenge<TState> {
-  initialize(params: unknown, metadata: ChallengeMetadata): TState;
+  initialize(metadata: ChallengeMetadata): TState;
   update(state: TState, action: Action): TState;
   isChallengeCompleted: (state: TState) => boolean;
   getFailureReason: (state: TState) => string | undefined;
 }
 
 export interface ChallengeMetadata {
+  seed: string;
   startTime: number;
   attemptId: string;
 }
@@ -21,10 +22,9 @@ export interface Action {
 
 export interface ChallengeDefinition<
   TState = Wildcard,
-  TParamsSchema extends z.ZodTypeAny = Wildcard,
   TActions extends ActionHandlers<TState> = ActionHandlers<TState>
 > {
-  initializer: Initializer<TState, TParamsSchema>;
+  getInitialState: (metadata: ChallengeMetadata) => TState;
   actionHandlers: TActions;
   isChallengeCompleted: (state: TState) => boolean;
   getFailureReason: (state: TState) => string | undefined;
@@ -43,19 +43,11 @@ type ActionHandler<TState, TPayloadType extends z.ZodTypeAny = Wildcard> = {
     metadata: ActionMetadata
   ) => void;
 };
-type Initializer<TState, TParamsSchema extends z.ZodTypeAny> = {
-  paramsSchema: TParamsSchema;
-  getInitialState: (
-    params: z.infer<TParamsSchema>,
-    metadata: ChallengeMetadata
-  ) => TState;
-};
 
 export class ChallengeContext<TState> {
-  createChallengeDefinition<
-    TParamsSchema extends z.ZodTypeAny,
-    TActions extends ActionHandlers<TState>
-  >(def: ChallengeDefinition<TState, TParamsSchema, TActions>) {
+  createChallengeDefinition<TActions extends ActionHandlers<TState>>(
+    def: ChallengeDefinition<TState, TActions>
+  ) {
     return def;
   }
 
@@ -69,26 +61,12 @@ export class ChallengeContext<TState> {
     };
   }
 
-  createInitializer<TParamsSchema extends z.ZodTypeAny>(
-    paramsSchema: TParamsSchema,
-    getInitialState: Initializer<TState, TParamsSchema>["getInitialState"]
-  ): Initializer<TState, TParamsSchema> {
-    return {
-      paramsSchema,
-      getInitialState,
-    };
-  }
-
   createChallenge<TDefinition extends ChallengeDefinition>(
     definition: TDefinition
   ): Challenge<TState> {
-    const { actionHandlers, initializer } = definition;
+    const { actionHandlers, getInitialState } = definition;
     return {
-      initialize: (params, metadata) => {
-        const paramsSchema = initializer.paramsSchema as z.ZodTypeAny;
-        const parsedParams = paramsSchema.parse(params);
-        return initializer.getInitialState(parsedParams, metadata);
-      },
+      initialize: getInitialState,
       update: (state, action) => {
         const found = Object.hasOwnProperty.call(actionHandlers, action.type);
         if (!found) {

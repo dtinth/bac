@@ -8,7 +8,7 @@ import {
 } from "../challenge-framework";
 
 export interface RuntimeMetadata {
-  params: unknown;
+  challengeMetadata: ChallengeMetadata;
   actionLog: unknown[][];
   size: number;
 }
@@ -20,8 +20,7 @@ export interface RuntimeDispatchFn<TState> {
 }
 export function useChallenge<TState>(
   challenge: Challenge<TState>,
-  challengeMetadata: ChallengeMetadata,
-  initialParams: unknown
+  challengeMetadata: ChallengeMetadata
 ) {
   const [startTime] = useState(() => performance.now());
   type RuntimeState = {
@@ -45,13 +44,13 @@ export function useChallenge<TState>(
         },
       };
     },
-    initialParams,
-    (params): RuntimeState => {
-      const state = challenge.initialize(params, challengeMetadata);
+    challengeMetadata,
+    (challengeMetadata): RuntimeState => {
+      const state = challenge.initialize(challengeMetadata);
       return {
         state,
         metadata: {
-          params,
+          challengeMetadata,
           actionLog: [],
           size: 2,
         },

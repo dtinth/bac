@@ -10,17 +10,14 @@ const ctx = new ChallengeContext<{
 }>();
 
 const definition = ctx.createChallengeDefinition({
-  initializer: ctx.createInitializer(
-    z.object({ seed: z.string() }),
-    (params) => {
-      return {
-        seed: params.seed,
-        challengeA: "",
-        challengeB: false,
-        challengeC: 0,
-      };
-    }
-  ),
+  getInitialState: ({ seed }) => {
+    return {
+      seed: seed,
+      challengeA: "",
+      challengeB: false,
+      challengeC: 0,
+    };
+  },
   actionHandlers: {
     a: ctx.createActionHandler(z.string(), (state, payload) => {
       state.challengeA = payload;
@@ -44,18 +41,19 @@ const actions = {
   increment: rawActions.c,
 };
 const challengeMetadata: ChallengeMetadata = {
+  seed: "meow",
   attemptId: "",
   startTime: 0,
 };
 
 test("initialize creates state", () => {
-  const state = challenge.initialize({ seed: "seed" }, challengeMetadata);
+  const state = challenge.initialize(challengeMetadata);
   expect(state).toMatchInlineSnapshot(`
     {
       "challengeA": "",
       "challengeB": false,
       "challengeC": 0,
-      "seed": "seed",
+      "seed": "meow",
     }
   `);
 });
@@ -72,7 +70,7 @@ test("creating action objects", () => {
 });
 
 test("updating state with actions", () => {
-  const initialState = challenge.initialize({ seed: "x" }, challengeMetadata);
+  const initialState = challenge.initialize(challengeMetadata);
   let state = initialState;
   const meta: ActionMetadata = { timestamp: 0 };
   state = challenge.update(state, actions.setText.create("hello", meta));
@@ -84,7 +82,7 @@ test("updating state with actions", () => {
       "challengeA": "",
       "challengeB": false,
       "challengeC": 0,
-      "seed": "x",
+      "seed": "meow",
     }
   `);
   expect(state).toMatchInlineSnapshot(`
@@ -92,7 +90,7 @@ test("updating state with actions", () => {
       "challengeA": "hello",
       "challengeB": true,
       "challengeC": 1,
-      "seed": "x",
+      "seed": "meow",
     }
   `);
 });

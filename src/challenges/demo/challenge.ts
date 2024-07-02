@@ -1,6 +1,6 @@
 import md5 from "md5";
 import { z } from "zod";
-import { ChallengeContext } from "../challenge-framework";
+import { ChallengeContext } from "../../challenge-framework";
 
 interface State {
   seed: string;
@@ -16,24 +16,17 @@ interface State {
 const ctx = new ChallengeContext<State>();
 
 const challengeDefinition = ctx.createChallengeDefinition({
-  initializer: ctx.createInitializer(
-    z.object({ seed: z.string() }),
-    (params, metadata) => {
-      return {
-        seed: params.seed,
-        expectedText: md5(params.seed + metadata.attemptId),
-        expectedNumber:
-          parseInt(
-            md5(params.seed + metadata.attemptId + "x").slice(0, 1),
-            16
-          ) + 4,
-        page: 0,
-        challengeA: "",
-        challengeB: false,
-        challengeC: 0,
-      };
-    }
-  ),
+  getInitialState: ({ seed, attemptId }) => {
+    return {
+      seed: seed,
+      expectedText: md5(seed + attemptId),
+      expectedNumber: parseInt(md5(seed + attemptId + "x").slice(0, 1), 16) + 4,
+      page: 0,
+      challengeA: "",
+      challengeB: false,
+      challengeC: 0,
+    };
+  },
   actionHandlers: {
     a: ctx.createActionHandler(z.string(), (state, payload) => {
       state.challengeA = payload;

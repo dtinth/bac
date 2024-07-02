@@ -15,7 +15,7 @@ import { uuidv7 } from "uuidv7";
 import { Challenge, ChallengeMetadata } from "../challenge-framework";
 import { RuntimeDispatchFn, useChallenge } from "../challenge-runtime";
 
-export interface ChallengeConfiguration<TState = unknown> {
+export interface ChallengeConfiguration<TState = Wildcard> {
   challenge: Challenge<TState>;
   timeLimitSeconds: number;
   renderChallenge: (
@@ -32,13 +32,13 @@ export function defineChallengeConfiguration<TState>(
 
 export interface ChallengeRunner {
   config: ChallengeConfiguration<Wildcard>;
-  initialParams: unknown;
+  seed: string;
 }
 export function ChallengeRunner(props: ChallengeRunner) {
-  const { config } = props;
+  const { config, seed } = props;
   const [attempt, setAttempt] = useState<ChallengeMetadata | undefined>();
   const newAttempt = () =>
-    setAttempt({ attemptId: uuidv7(), startTime: Date.now() });
+    setAttempt({ seed, attemptId: uuidv7(), startTime: Date.now() });
   if (!attempt) {
     return (
       <>
@@ -51,13 +51,13 @@ export function ChallengeRunner(props: ChallengeRunner) {
           gap={2}
         >
           <Box>
-            <strong>Ready to start challenge?</strong>
+            <strong>Ready to start the challenge?</strong>
             <br />
             Click the start button to begin.
           </Box>
           <Spacer />
           <Button onClick={newAttempt} colorScheme="blue">
-            Start
+            Start challenge
           </Button>
         </Flex>
         <Card>
@@ -70,7 +70,6 @@ export function ChallengeRunner(props: ChallengeRunner) {
     <ChallengeAttempt
       config={config}
       challengeMetadata={attempt}
-      initialParams={props.initialParams}
       key={attempt.attemptId}
       onReset={() => setAttempt(undefined)}
     />
@@ -82,17 +81,15 @@ type Wildcard = any;
 export interface ChallengeAttempt {
   config: ChallengeConfiguration<Wildcard>;
   challengeMetadata: ChallengeMetadata;
-  initialParams: unknown;
   onReset: () => void;
 }
 
 export function ChallengeAttempt(props: ChallengeAttempt) {
-  const { config, challengeMetadata, initialParams } = props;
+  const { config, challengeMetadata } = props;
   const { challenge } = config;
   const [state, dispatch, runtimeMetadata, startPerformanceTime] = useChallenge(
     config.challenge,
-    challengeMetadata,
-    initialParams
+    challengeMetadata
   );
   const [timeIsUp, setTimeIsUp] = useState(false);
   const logSizeLimit = 262144;
