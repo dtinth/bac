@@ -1,13 +1,16 @@
 import { ChallengeConfiguration } from "../challenge-runner";
-import * as buttons from "./buttons";
-import * as demo from "./demo";
-import * as robot from "./robot";
-export const configMap = new Map<string, ChallengeConfiguration>();
+export const configMap = new Map<
+  string,
+  Promise<{ config: ChallengeConfiguration }>
+>();
 
 if (import.meta.env.VITE_CHALLENGE === "demo") {
-  configMap.set("demo", demo.config);
+  configMap.set("demo", import("./demo"));
 } else {
-  configMap.set("demo", demo.config);
-  configMap.set("buttons", buttons.config);
-  configMap.set("robot", robot.config);
+  if (location.hostname !== "localhost") {
+    throw new Error("Invalid challenge");
+  }
+  configMap.set("demo", import("./demo"));
+  configMap.set("buttons", import("./buttons"));
+  configMap.set("robot", import("./robot"));
 }
