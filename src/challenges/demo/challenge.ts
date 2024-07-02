@@ -2,7 +2,7 @@ import md5 from "md5";
 import { z } from "zod";
 import { ChallengeContext } from "../../challenge-framework";
 
-interface State {
+const ctx = new ChallengeContext<{
   seed: string;
   failed?: string;
   expectedText: string;
@@ -11,9 +11,7 @@ interface State {
   challengeA: string;
   challengeB: boolean;
   challengeC: number;
-}
-
-const ctx = new ChallengeContext<State>();
+}>();
 
 const challengeDefinition = ctx.createChallengeDefinition({
   getInitialState: ({ seed, attemptId }) => {
