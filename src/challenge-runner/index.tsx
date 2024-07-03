@@ -97,6 +97,7 @@ export function ChallengeAttempt(props: ChallengeAttempt) {
     0,
     Math.min(100, Math.ceil((1 - runtimeMetadata.size / logSizeLimit) * 100))
   );
+  const score = challenge.getScore(state);
 
   if (challenge.isChallengeCompleted(state)) {
     return (
@@ -156,6 +157,17 @@ export function ChallengeAttempt(props: ChallengeAttempt) {
           Attempt: {challengeMetadata.attemptId}
         </Box>
         <Spacer />
+        {score != null && (
+          <Box width="5em" fontSize="xs">
+            Score
+            <Progress
+              value={score}
+              border="1px solid"
+              borderColor="green.300"
+              colorScheme="green"
+            />
+          </Box>
+        )}
         <Box width="5em" fontSize="xs">
           HP
           <Countdown

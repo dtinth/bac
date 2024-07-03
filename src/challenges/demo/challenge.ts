@@ -66,7 +66,40 @@ const challengeDefinition = ctx.createChallengeDefinition({
   getFailureReason: (state) => {
     return state.failed;
   },
+  getScore: (state) => {
+    let score = 0;
+    let total = 0;
+    const addScore = (value: number, fraction = 1) => {
+      score += Math.floor(value * fraction);
+      total += value;
+    };
+    addScore(10, state.page >= 1 ? 1 : 0);
+    addScore(10, state.page >= 2 ? 1 : 0);
+    addScore(10, state.page >= 3 ? 1 : 0);
+    addScore(30, commonPrefixFraction(state.expectedText, state.challengeA));
+    addScore(10, state.challengeB ? 1 : 0);
+    addScore(
+      30,
+      state.challengeC <= state.expectedNumber
+        ? state.challengeC / state.expectedNumber
+        : 0
+    );
+    return score;
+  },
 });
+
+function commonPrefixFraction(a: string, b: string) {
+  let commonPrefix = 0;
+  for (let i = 0; i < a.length && i < b.length; i++) {
+    if (a[i] === b[i]) {
+      commonPrefix++;
+    } else {
+      break;
+    }
+  }
+  if (commonPrefix === 0) return 0;
+  return commonPrefix / Math.max(a.length, b.length);
+}
 
 export const challenge = ctx.createChallenge(challengeDefinition);
 export const actions = ctx.createActionCreators(challengeDefinition);

@@ -6,6 +6,7 @@ export interface Challenge<TState> {
   update(state: TState, action: Action): TState;
   isChallengeCompleted: (state: TState) => boolean;
   getFailureReason: (state: TState) => string | undefined;
+  getScore: (state: TState) => number | undefined;
 }
 
 export interface ChallengeMetadata {
@@ -28,6 +29,7 @@ export interface ChallengeDefinition<
   actionHandlers: TActions;
   isChallengeCompleted: (state: TState) => boolean;
   getFailureReason: (state: TState) => string | undefined;
+  getScore?: (state: TState) => number;
 }
 
 export interface ActionMetadata {
@@ -85,6 +87,7 @@ export class ChallengeContext<TState> {
       },
       isChallengeCompleted: definition.isChallengeCompleted,
       getFailureReason: definition.getFailureReason,
+      getScore: (state) => definition.getScore?.(state),
     };
   }
 
@@ -97,11 +100,11 @@ export class ChallengeContext<TState> {
         return [type, new ChallengeAction(type, handler.payloadSchema)];
       })
     ) as {
-      [K in keyof TDefinition["actionHandlers"] & string]: ChallengeAction<
-        this,
-        TDefinition["actionHandlers"][K]["payloadSchema"]
-      >;
-    };
+        [K in keyof TDefinition["actionHandlers"] & string]: ChallengeAction<
+          this,
+          TDefinition["actionHandlers"][K]["payloadSchema"]
+        >;
+      };
   }
 }
 
@@ -115,7 +118,7 @@ export class ChallengeAction<
   _context!: TContext;
   _payload!: z.infer<TPayloadSchema>;
 
-  constructor(public type: string, public payloadSchema: TPayloadSchema) {}
+  constructor(public type: string, public payloadSchema: TPayloadSchema) { }
 
   create(payload: z.infer<TPayloadSchema>, metadata: ActionMetadata) {
     return {
