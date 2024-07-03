@@ -3,14 +3,32 @@ import { useQuery } from "@tanstack/react-query";
 import { ChallengeRunner } from "./challenge-runner";
 import { configMap } from "./challenges";
 
+interface ChallengeParams {
+  challengeName: string;
+  seed: string;
+}
+
 function App() {
-  const params = new URLSearchParams(location.search);
-  const challengeName = params.get("challenge") ?? "";
-  const seed = params.get("seed") ?? `${Date.now()}`;
+  const { isLoading, data: params } = useQuery({
+    queryKey: ["params"],
+    queryFn: async (): Promise<ChallengeParams> => {
+      const params = new URLSearchParams(location.search);
+      return {
+        challengeName: params.get("challenge") ?? (
+          configMap.size === 1 ? Array.from(configMap.keys())[0] : ""
+        ),
+        seed: params.get("seed") ?? `${Date.now()}`,
+      };
+    },
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
   return (
     <Container maxW="container.md" py={4}>
-      {challengeName ? (
-        <ChallengeLoader challengeName={challengeName} seed={seed} />
+      {params?.challengeName ? (
+        <ChallengeLoader challengeName={params.challengeName} seed={params.seed} />
+      ) : isLoading ? (
+        <div>Loading...</div>
       ) : (
         <ul>
           {Array.from(configMap.keys(), (key) => (
