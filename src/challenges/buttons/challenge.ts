@@ -44,6 +44,7 @@ const challengeDefinition = ctx.createChallengeDefinition({
   isChallengeCompleted: (state) => state.completed >= 100,
   getFailureReason: (state) =>
     state.wrong ? "Incorrect answer was given" : undefined,
+  getScore: (state) => state.completed,
 });
 
 function generateQuestion(rngSeed: string, num: number): Question {

@@ -100,11 +100,11 @@ export class ChallengeContext<TState> {
         return [type, new ChallengeAction(type, handler.payloadSchema)];
       })
     ) as {
-        [K in keyof TDefinition["actionHandlers"] & string]: ChallengeAction<
-          this,
-          TDefinition["actionHandlers"][K]["payloadSchema"]
-        >;
-      };
+      [K in keyof TDefinition["actionHandlers"] & string]: ChallengeAction<
+        this,
+        TDefinition["actionHandlers"][K]["payloadSchema"]
+      >;
+    };
   }
 }
 
@@ -118,7 +118,7 @@ export class ChallengeAction<
   _context!: TContext;
   _payload!: z.infer<TPayloadSchema>;
 
-  constructor(public type: string, public payloadSchema: TPayloadSchema) { }
+  constructor(public type: string, public payloadSchema: TPayloadSchema) {}
 
   create(payload: z.infer<TPayloadSchema>, metadata: ActionMetadata) {
     return {
@@ -126,5 +126,20 @@ export class ChallengeAction<
       timestamp: metadata.timestamp,
       payload,
     };
+  }
+}
+
+export class ScoreKeeper {
+  private score = 0;
+  private total = 0;
+  add(value: number, fraction = 1) {
+    this.score += Math.floor(value * fraction);
+    this.total += value;
+  }
+  getFinalScore() {
+    if (this.total !== 100) {
+      throw new Error(`Total score is not 100, but ${this.total}`);
+    }
+    return this.score;
   }
 }

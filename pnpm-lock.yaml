@@ -26,6 +26,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.49.2
         version: 5.49.2(react@18.3.1)
+      '@thai/get-or-create':
+        specifier: npm:@jsr/thai__get-or-create@^0.0.4
+        version: '@jsr/thai__get-or-create@0.0.4'
       framer-motion:
         specifier: ^11.2.12
         version: 11.2.12(@emotion/is-prop-valid@1.2.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1074,6 +1077,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
+
+  '@jsr/thai__get-or-create@0.0.4':
+    resolution: {integrity: sha512-HvepsyVpvrtWAI43MwwqRaTjAQCqCmhdzV7szftPmmbt5omQPgDEWLn9gA6APQMj/29JEN0gV5LvRlWY4IvvwA==, tarball: https://npm.jsr.io/~/11/@jsr/thai__get-or-create/0.0.4.tgz}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -3495,6 +3501,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.4.15
+
+  '@jsr/thai__get-or-create@0.0.4': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:

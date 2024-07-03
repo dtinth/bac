@@ -1,6 +1,6 @@
 import md5 from "md5";
 import { z } from "zod";
-import { ChallengeContext } from "../../challenge-framework";
+import { ChallengeContext, ScoreKeeper } from "../../challenge-framework";
 
 const ctx = new ChallengeContext<{
   seed: string;
@@ -67,24 +67,19 @@ const challengeDefinition = ctx.createChallengeDefinition({
     return state.failed;
   },
   getScore: (state) => {
-    let score = 0;
-    let total = 0;
-    const addScore = (value: number, fraction = 1) => {
-      score += Math.floor(value * fraction);
-      total += value;
-    };
-    addScore(10, state.page >= 1 ? 1 : 0);
-    addScore(10, state.page >= 2 ? 1 : 0);
-    addScore(10, state.page >= 3 ? 1 : 0);
-    addScore(30, commonPrefixFraction(state.expectedText, state.challengeA));
-    addScore(10, state.challengeB ? 1 : 0);
-    addScore(
+    const score = new ScoreKeeper();
+    score.add(10, state.page >= 1 ? 1 : 0);
+    score.add(10, state.page >= 2 ? 1 : 0);
+    score.add(10, state.page >= 3 ? 1 : 0);
+    score.add(30, commonPrefixFraction(state.expectedText, state.challengeA));
+    score.add(10, state.challengeB ? 1 : 0);
+    score.add(
       30,
       state.challengeC <= state.expectedNumber
         ? state.challengeC / state.expectedNumber
         : 0
     );
-    return score;
+    return score.getFinalScore();
   },
 });
 

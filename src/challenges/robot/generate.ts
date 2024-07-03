@@ -121,3 +121,32 @@ export function generateMaze(w: number, h: number, seed: string) {
 
   return cells;
 }
+
+export function generateDistanceMap(maze: number[][]): DistanceMap {
+  const queue: [number, number, number][] = [];
+  queue.push([maze.length - 1, maze[0].length - 2, 0]);
+  const visited = new Map<string, number>();
+  while (queue.length > 0) {
+    const [row, column, distance] = queue.shift()!;
+    if (row < 0 || row >= maze.length) continue;
+    if (column < 0 || column >= maze[0].length) continue;
+    if (maze[row][column]) continue;
+    const key = `${row},${column}`;
+    if (visited.has(key)) continue;
+    visited.set(key, distance);
+    queue.push([row + 1, column, distance + 1]);
+    queue.push([row - 1, column, distance + 1]);
+    queue.push([row, column + 1, distance + 1]);
+    queue.push([row, column - 1, distance + 1]);
+  }
+  return {
+    getDistance: ([row, column]: [number, number]) => {
+      const key = `${row},${column}`;
+      return visited.get(key) ?? null;
+    },
+  };
+}
+
+export interface DistanceMap {
+  getDistance(cell: [number, number]): number | null;
+}

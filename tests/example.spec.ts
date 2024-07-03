@@ -5,7 +5,7 @@ test("challenge demo", async ({ page }) => {
   await page.getByRole("button", { name: "Start challenge" }).click();
   const typeTheFollowingText = page.getByText(/Type the following/);
   const text = (await typeTheFollowingText.innerText()).match(/:\s*(\w+)/)![1];
-  await page.getByRole("textbox").fill(text);
+  await page.getByRole("textbox").pressSequentially(text);
   await page.getByRole("button", { name: "Next" }).click();
   await page.getByRole("checkbox").press("Space");
   await page.getByRole("button", { name: "Next" }).click();
@@ -17,7 +17,7 @@ test("challenge demo", async ({ page }) => {
   await page.getByRole("button", { name: "Next" }).click();
 });
 
-test("challenge button", async ({ page }) => {
+test("challenge buttons", async ({ page }) => {
   test.slow();
   await page.goto("/?challenge=buttons");
   await page.getByRole("button", { name: "Start challenge" }).click();

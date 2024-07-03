@@ -1,7 +1,8 @@
+import { getOrCreate } from "@thai/get-or-create";
 import md5 from "md5";
 import { z } from "zod";
-import { ChallengeContext } from "../../challenge-framework";
-import { generateMaze } from "./generate";
+import { ChallengeContext, ScoreKeeper } from "../../challenge-framework";
+import { DistanceMap, generateDistanceMap, generateMaze } from "./generate";
 
 export type Position = [number, number];
 const ctx = new ChallengeContext<{
@@ -19,6 +20,10 @@ export function getMaze(seed: string) {
   cachedMaze = { maze, seed };
   return maze;
 }
+
+const distanceMapCache = new WeakMap<number[][], DistanceMap>();
+const getDistanceMap = (maze: number[][]) =>
+  getOrCreate(distanceMapCache, maze, () => generateDistanceMap(maze));
 
 export function travel(cell: Position, direction: number): Position {
   switch (direction) {
@@ -87,6 +92,26 @@ const challengeDefinition = ctx.createChallengeDefinition({
     if (maze[row][column]) {
       return "You hit a wall!";
     }
+  },
+  getScore: (state) => {
+    const maze = getMaze(state.seed);
+    const [row, column] = state.cell;
+    const targetRow = maze.length - 1;
+    const targetColumn = maze[0].length - 2;
+    const initialRow = 0;
+    const initialColumn = 1;
+    const distance =
+      Math.abs(row - targetRow) + Math.abs(column - targetColumn);
+    const initialDistance =
+      Math.abs(initialRow - targetRow) + Math.abs(initialColumn - targetColumn);
+    const score = new ScoreKeeper();
+    score.add(50, 1 - distance / initialDistance);
+    const distanceMap = getDistanceMap(maze);
+    const realDistance = distanceMap.getDistance(state.cell) || 999;
+    const realInitialDistance =
+      distanceMap.getDistance([initialRow, initialColumn]) || 999;
+    score.add(50, 1 - realDistance / realInitialDistance);
+    return score.getFinalScore();
   },
 });
 
