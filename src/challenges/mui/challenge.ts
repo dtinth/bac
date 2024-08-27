@@ -78,7 +78,7 @@ const challengeDefinition = ctx.createChallengeDefinition({
   },
   getScore: (state) => {
     const score = new ScoreKeeper();
-    score.add(100, state.completed.length / 10);
+    score.add(100, state.completed.length / expectedDates.length);
     return score.getFinalScore();
   },
 });
