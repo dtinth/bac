@@ -121,6 +121,12 @@ test("challenge mui", async ({ page }) => {
 2009-02-25 05:37`.split(`
 `);
   expect(challenges.length).toBe(20);
+
+  // Rearrange the challenges by month because switching month takes the most time
+  challenges.push(
+    ...challenges.splice(5).sort((a, b) => a.slice(5).localeCompare(b.slice(5)))
+  );
+
   await page.goto("/?challenge=mui");
   await page.getByRole("button", { name: "Start challenge" }).click();
 
