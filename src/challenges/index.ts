@@ -13,4 +13,6 @@ if (import.meta.env.VITE_CHALLENGE === "demo") {
   configMap.set("demo", import("./demo"));
   configMap.set("buttons", import("./buttons"));
   configMap.set("robot", import("./robot"));
+  configMap.set("towers", import("./towers"));
+  configMap.set("mui", import("./mui"));
 }
