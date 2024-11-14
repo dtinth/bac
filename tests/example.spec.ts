@@ -1,7 +1,20 @@
-import { expect, test } from "@playwright/test";
+import { expect, Page, test } from "@playwright/test";
+import { readdirSync } from "fs";
+
+async function loadChallenge(page: Page, name: string) {
+  await page.goto(`/?challenge=${name}`, { waitUntil: "load" });
+  if (!(await page.locator(".chakra-ui-light").isVisible())) {
+    // Assume that the compiled version is running instead!
+    const dirs = readdirSync("dist");
+    const matching = dirs.filter((dir) => dir.startsWith("challenge-" + name));
+    await page.goto(`http://localhost:5173/${matching[0]}/?challenge=${name}`, {
+      waitUntil: "load",
+    });
+  }
+}
 
 test("challenge demo", async ({ page }) => {
-  await page.goto("/?challenge=demo");
+  await loadChallenge(page, "demo");
   await page.getByRole("button", { name: "Start challenge" }).click();
   const typeTheFollowingText = page.getByText(/Type the following/);
   const text = (await typeTheFollowingText.innerText()).match(/:\s*(\w+)/)![1];
@@ -19,7 +32,7 @@ test("challenge demo", async ({ page }) => {
 
 test("challenge buttons", async ({ page }) => {
   test.slow();
-  await page.goto("/?challenge=buttons");
+  await loadChallenge(page, "buttons");
   await page.getByRole("button", { name: "Start challenge" }).click();
   const question = page.getByText(/=/);
   for (let i = 1; i <= 100; i++) {
@@ -51,7 +64,7 @@ test("challenge buttons", async ({ page }) => {
 
 test("challenge robot", async ({ page }) => {
   test.slow();
-  await page.goto("/?challenge=robot");
+  await loadChallenge(page, "robot");
   await page.getByRole("button", { name: "Start challenge" }).click();
   const goForward = page.getByRole("button", { name: "Go forward" });
   const turnLeft = page.getByRole("button", { name: "Turn left" });
@@ -83,7 +96,7 @@ test("challenge robot", async ({ page }) => {
 
 test("challenge towers", async ({ page }) => {
   test.slow();
-  await page.goto("/?challenge=towers");
+  await loadChallenge(page, "towers");
   await page.getByRole("button", { name: "Start challenge" }).click();
 
   const completed = page.getByText("Challenge completed!");
@@ -127,7 +140,7 @@ test("challenge mui", async ({ page }) => {
     ...challenges.splice(5).sort((a, b) => a.slice(5).localeCompare(b.slice(5)))
   );
 
-  await page.goto("/?challenge=mui");
+  await loadChallenge(page, "mui");
   await page.getByRole("button", { name: "Start challenge" }).click();
 
   for (const challenge of challenges) {

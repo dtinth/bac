@@ -159,7 +159,7 @@ export function ChallengeAttempt(props: ChallengeAttempt) {
         <Spacer />
         {score != null && (
           <Box width="5em" fontSize="xs">
-            Score
+            Progress
             <Progress
               value={score}
               border="1px solid"
@@ -169,7 +169,7 @@ export function ChallengeAttempt(props: ChallengeAttempt) {
           </Box>
         )}
         <Box width="5em" fontSize="xs">
-          HP
+          Time
           <Countdown
             startPerformanceTime={startPerformanceTime}
             timeLimitSeconds={config.timeLimitSeconds}
