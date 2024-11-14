@@ -6,6 +6,14 @@ export const configMap = new Map<
 
 if (import.meta.env.VITE_CHALLENGE === "demo") {
   configMap.set("demo", import("./demo"));
+} else if (import.meta.env.VITE_CHALLENGE === "buttons") {
+  configMap.set("buttons", import("./buttons"));
+} else if (import.meta.env.VITE_CHALLENGE === "mui") {
+  configMap.set("mui", import("./mui"));
+} else if (import.meta.env.VITE_CHALLENGE === "robot") {
+  configMap.set("robot", import("./robot"));
+} else if (import.meta.env.VITE_CHALLENGE === "towers") {
+  configMap.set("towers", import("./towers"));
 } else {
   if (location.hostname !== "localhost") {
     throw new Error("Invalid challenge");
