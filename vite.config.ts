@@ -3,6 +3,10 @@ import { defineConfig } from "vite";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: process.env.BUILD_BASE || "/",
+  build: {
+    outDir: process.env.BUILD_OUT || "dist",
+  },
   plugins: [react()],
 
   esbuild: {
