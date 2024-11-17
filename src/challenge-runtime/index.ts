@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { atom, computed, ReadableAtom } from "nanostores";
+import { ofetch } from "ofetch";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import {
   Action,
   Challenge,
@@ -19,14 +21,24 @@ export interface RuntimeDispatchFn<TState> {
   ): void;
 }
 
-interface ChallengeSubmitter {
+export interface ChallengeSubmitter {
   handleState: (
     state: { state: unknown; metadata: RuntimeMetadata },
     extra: { progress: number | undefined; completed: boolean }
   ) => void;
   activate: () => void;
   deactivate: () => void;
+  $status: ReadableAtom<SubmitterStatus>;
 }
+
+export type SubmitterStatus =
+  | "offline"
+  | "connecting"
+  | "connected"
+  | "disconnected"
+  | "submitting"
+  | "submitted"
+  | "submissionFailed";
 
 function createChallengeSubmitter(): ChallengeSubmitter {
   const params = new URLSearchParams(window.location.search);
@@ -46,6 +58,7 @@ function createNullChallengeSubmitter(): ChallengeSubmitter {
     handleState: () => {},
     activate: () => {},
     deactivate: () => {},
+    $status: atom("offline"),
   };
 }
 
@@ -54,13 +67,40 @@ function createRealChallengeSubmitter(options: {
   reportUrl: string;
   token: string;
 }): ChallengeSubmitter {
+  let _ws: WebSocket | undefined;
   let _challengeMetadata: ChallengeMetadata | undefined;
   let _actionLogSize = 0;
   let _lastState: unknown = undefined;
   let _completed = false;
+  const $wsStatus = atom<SubmitterStatus>("connecting");
+  const $submissionStatus = atom<
+    "submitting" | "submitted" | "submissionFailed" | undefined
+  >(undefined);
+  const $status = computed(
+    [$wsStatus, $submissionStatus],
+    (wsStatus, submissionStatus): SubmitterStatus =>
+      submissionStatus ?? wsStatus
+  );
+  const submit = async (data: {
+    state: unknown;
+    actionLog: unknown[];
+    challengeMetadata: ChallengeMetadata;
+  }) => {
+    $submissionStatus.set("submitting");
+    try {
+      await ofetch(options.submitUrl, {
+        method: "POST",
+        body: data,
+        headers: { "x-submission-token": options.token },
+      });
+      $submissionStatus.set("submitted");
+    } catch (error) {
+      console.error(error);
+      $submissionStatus.set("submissionFailed");
+    }
+  };
 
   const token = options.token;
-  const ws = new WebSocket(options.reportUrl);
   let queue: string[] | undefined = [];
   const send = (x: unknown) => {
     if (queue) {
@@ -68,22 +108,11 @@ function createRealChallengeSubmitter(options: {
       return;
     }
     try {
-      ws.send(JSON.stringify(x));
+      _ws!.send(JSON.stringify(x));
     } catch (error) {
       console.error("[ws]", error);
     }
   };
-  ws.onopen = () => {
-    try {
-      if (queue) {
-        queue.forEach((x) => ws.send(x));
-        queue = undefined;
-      }
-    } catch (error) {
-      console.error("[ws]", error);
-    }
-  };
-
   let closeTimeout: ReturnType<typeof setTimeout> | undefined;
 
   return {
@@ -104,9 +133,31 @@ function createRealChallengeSubmitter(options: {
       }
       if (!_completed && completed) {
         _completed = true;
+        submit({ state, actionLog, challengeMetadata });
       }
     },
     activate: () => {
+      if (!_ws) {
+        const ws = (_ws = new WebSocket(options.reportUrl));
+        ws.onopen = () => {
+          $wsStatus.set("connected");
+          try {
+            if (queue) {
+              queue.forEach((x) => ws.send(x));
+              queue = undefined;
+            }
+          } catch (error) {
+            console.error("[ws]", error);
+          }
+        };
+        ws.onclose = () => {
+          $wsStatus.set("disconnected");
+        };
+        ws.onerror = (error) => {
+          $wsStatus.set("disconnected");
+          console.error("[ws]", error);
+        };
+      }
       if (closeTimeout) {
         clearTimeout(closeTimeout);
         closeTimeout = undefined;
@@ -114,9 +165,10 @@ function createRealChallengeSubmitter(options: {
     },
     deactivate: () => {
       closeTimeout = setTimeout(() => {
-        ws.close();
+        _ws?.close();
       }, 1000);
     },
+    $status,
   };
 }
 
@@ -124,7 +176,9 @@ export function useChallenge<TState>(
   challenge: Challenge<TState>,
   challengeMetadata: ChallengeMetadata
 ) {
-  const submitter = useRef<ChallengeSubmitter | null>(null);
+  const [submitter] = useState<ChallengeSubmitter>(() =>
+    createChallengeSubmitter()
+  );
   const [startTime] = useState(() => performance.now());
   type RuntimeState = {
     state: TState;
@@ -161,24 +215,17 @@ export function useChallenge<TState>(
     }
   );
   useEffect(() => {
-    if (!submitter.current) {
-      submitter.current = createChallengeSubmitter();
-    }
-    const s = submitter.current;
-    s.activate();
+    submitter.activate();
     return () => {
-      s.deactivate();
+      submitter.deactivate();
     };
-  }, []);
+  }, [submitter]);
   useEffect(() => {
-    if (!submitter.current) {
-      return;
-    }
-    submitter.current.handleState(state, {
+    submitter.handleState(state, {
       progress: challenge.getScore(state.state),
       completed: challenge.isChallengeCompleted(state.state),
     });
-  }, [state, challenge]);
+  }, [submitter, state, challenge]);
   const dispatchAction: RuntimeDispatchFn<TState> = useCallback(
     (action, payload) => {
       const timestamp = Math.round(performance.now() - startTime);
@@ -187,5 +234,11 @@ export function useChallenge<TState>(
     },
     [dispatch, startTime]
   );
-  return [state.state, dispatchAction, state.metadata, startTime] as const;
+  return [
+    state.state,
+    dispatchAction,
+    state.metadata,
+    startTime,
+    submitter,
+  ] as const;
 }

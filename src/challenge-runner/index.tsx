@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import {
+  Badge,
   Box,
   Button,
   Card,
@@ -9,11 +10,16 @@ import {
   Progress,
   Spacer,
 } from "@chakra-ui/react";
+import { useStore } from "@nanostores/react";
 import { ReloadIcon } from "@radix-ui/react-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { uuidv7 } from "uuidv7";
 import { Challenge, ChallengeMetadata } from "../challenge-framework";
-import { RuntimeDispatchFn, useChallenge } from "../challenge-runtime";
+import {
+  ChallengeSubmitter,
+  RuntimeDispatchFn,
+  useChallenge,
+} from "../challenge-runtime";
 
 export interface ChallengeConfiguration<TState = Wildcard> {
   challenge: Challenge<TState>;
@@ -87,10 +93,8 @@ export interface ChallengeAttempt {
 export function ChallengeAttempt(props: ChallengeAttempt) {
   const { config, challengeMetadata } = props;
   const { challenge } = config;
-  const [state, dispatch, runtimeMetadata, startPerformanceTime] = useChallenge(
-    config.challenge,
-    challengeMetadata
-  );
+  const [state, dispatch, runtimeMetadata, startPerformanceTime, submitter] =
+    useChallenge(config.challenge, challengeMetadata);
   const [timeIsUp, setTimeIsUp] = useState(false);
   const logSizeLimit = 262144;
   const hp = Math.max(
@@ -111,6 +115,7 @@ export function ChallengeAttempt(props: ChallengeAttempt) {
       >
         <Box>
           <strong>Challenge completed!</strong>
+          <SubmitterStatusView submitter={submitter} />
           <br />
           Congratulations!
         </Box>
@@ -130,6 +135,7 @@ export function ChallengeAttempt(props: ChallengeAttempt) {
       <Flex bg="red.100" p={4} mb={3} borderRadius="md" align="center" gap={2}>
         <Box>
           <strong>Challenge failed</strong>
+          <SubmitterStatusView submitter={submitter} />
           <br />
           {failureReason}
         </Box>
@@ -153,6 +159,7 @@ export function ChallengeAttempt(props: ChallengeAttempt) {
       >
         <Box>
           <strong>Challenge in progress</strong>
+          <SubmitterStatusView submitter={submitter} />
           <br />
           Attempt: {challengeMetadata.attemptId}
         </Box>
@@ -198,6 +205,39 @@ export function ChallengeAttempt(props: ChallengeAttempt) {
         <CardBody p={4}>{config.renderChallenge(state, dispatch)}</CardBody>
       </Card>
     </Box>
+  );
+}
+
+interface SubmitterStatusView {
+  submitter: ChallengeSubmitter;
+}
+function SubmitterStatusView(props: SubmitterStatusView) {
+  const { submitter } = props;
+  const status = useStore(submitter.$status);
+  return (
+    <div style={{ marginLeft: "1ch", display: "inline-block" }}>
+      <Badge
+        colorScheme={
+          status === "connected"
+            ? "green"
+            : status === "disconnected"
+            ? "red"
+            : status === "connecting"
+            ? "purple"
+            : status === "offline"
+            ? "gray"
+            : status === "submitting"
+            ? "yellow"
+            : status === "submitted"
+            ? "green"
+            : status === "submissionFailed"
+            ? "red"
+            : "gray"
+        }
+      >
+        {status}
+      </Badge>
+    </div>
   );
 }
 
