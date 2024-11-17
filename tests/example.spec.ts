@@ -1,15 +1,21 @@
 import { expect, Page, test } from "@playwright/test";
 import { readdirSync } from "fs";
 
+const extraParams =
+  "&submitTo=http%3A%2F%2Flocalhost%3A9749%2Fapi%2Fsubmissions%2Fsubmit&token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI2NDRjMzVhNjgwMmMwMjM0NTg4N2YxNTYiLCJ0ZWFtTmFtZSI6IlN0YWZmIHRlYW0hIiwiY2hhbGxlbmdlSWQiOjgsImNoYWxsZW5nZUNvZGVuYW1lIjoiX2RlbW8iLCJleHAiOjE3MzE4ODI0NTMsImlzcyI6Imh0dHBzOi8vc2hvd2Rvd24uc3BhY2UvZXZlbnRzL2Jyb3dzZXItYXV0b21hdGlvbi1jaGFsbGVuZ2VzLyIsImF1ZCI6InN1Ym1pdHRlciJ9.3moyHNdyFZn6G4MWNMhhXeFlCwmqvi4-6nvRWyjjhiQ&reportTo=ws%3A%2F%2Flocalhost%3A9750";
+
 async function loadChallenge(page: Page, name: string) {
-  await page.goto(`/?challenge=${name}`, { waitUntil: "load" });
+  await page.goto(`/?challenge=${name}${extraParams}`, { waitUntil: "load" });
   if (!(await page.locator(".chakra-ui-light").isVisible())) {
     // Assume that the compiled version is running instead!
     const dirs = readdirSync("dist");
     const matching = dirs.filter((dir) => dir.startsWith("challenge-" + name));
-    await page.goto(`http://localhost:5173/${matching[0]}/?challenge=${name}`, {
-      waitUntil: "load",
-    });
+    await page.goto(
+      `http://localhost:5173/${matching[0]}/?challenge=${name}${extraParams}`,
+      {
+        waitUntil: "load",
+      }
+    );
   }
 }
 
