@@ -14,7 +14,7 @@ const mapping = {
 };
 
 test("ssg challenge", async ({ page }) => {
-  await page.goto("http://localhost:5174/ssg");
+  await page.goto("https://lemon-meadow-0c732f100.5.azurestaticapps.net/ssg");
   const text = await page.locator(".number").innerText();
   const digits = page.locator(".seven-segment");
   for (const [i, n] of Array.from(text).entries()) {
