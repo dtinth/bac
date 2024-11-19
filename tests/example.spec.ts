@@ -68,6 +68,20 @@ test("challenge buttons", async ({ page }) => {
   }
 });
 
+test("challenge hunting", async ({ page }) => {
+  await loadChallenge(page, "hunting");
+  await page.getByRole("button", { name: "Start challenge" }).click();
+  const numbers = await page.locator(".chakra-badge").allInnerTexts();
+  const boxes = page.locator("img");
+  const handles = await boxes.elementHandles();
+  const tooltip = page.locator('body > div[style*="100"][style*="z-index"]');
+  for (const handle of handles) {
+    if (!(await handle.isVisible())) continue;
+    await handle.hover();
+    if (numbers.includes(await tooltip.innerText())) await handle.click();
+  }
+});
+
 test("challenge robot", async ({ page }) => {
   test.slow();
   await loadChallenge(page, "robot");
