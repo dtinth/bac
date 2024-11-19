@@ -8,6 +8,7 @@ end
 envs = [
   make_challenge('buttons'),
   make_challenge('demo'),
+  make_challenge('hunting'),
   make_challenge('mui'),
   make_challenge('robot'),
   make_challenge('towers'),
